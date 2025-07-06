@@ -1,6 +1,8 @@
 // 自动滚动插件内容脚本
 
 let scrollInterval = null;
+let startTimeout = null;
+let countdownInterval = null;
 let isScrolling = false;
 let currentSettings = {
     direction: 'down',
@@ -39,10 +41,18 @@ function startScrolling(settings) {
     
     isScrolling = true;
     
-    // 开始滚动循环
-    scrollInterval = setInterval(function() {
-        performScroll();
-    }, currentSettings.interval);
+    // 显示倒计时
+    showCountdown();
+    
+    // 延时5秒后开始滚动
+    startTimeout = setTimeout(function() {
+        if (isScrolling) { // 确保在延时期间没有被停止
+            removeCountdown();
+            scrollInterval = setInterval(function() {
+                performScroll();
+            }, currentSettings.interval);
+        }
+    }, 5000);
 }
 
 // 停止滚动
@@ -51,6 +61,15 @@ function stopScrolling() {
         clearInterval(scrollInterval);
         scrollInterval = null;
     }
+    if (startTimeout) {
+        clearTimeout(startTimeout);
+        startTimeout = null;
+    }
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+    removeCountdown();
     isScrolling = false;
 }
 
@@ -73,11 +92,11 @@ function performScroll() {
     
     // 检查是否到达页面底部或顶部
     if (direction === 'down' && window.pageYOffset + window.innerHeight >= document.body.scrollHeight) {
-        // 到达底部，自动从顶部继续滚动
-        window.scrollTo({top: 0, behavior: 'smooth'});
+        // 到达底部，自动停止滚动
+        stopScrolling();
     } else if (direction === 'up' && window.pageYOffset <= 0) {
-        // 到达顶部，自动从底部继续滚动
-        window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+        // 到达顶部，自动停止滚动
+        stopScrolling();
     }
 }
 
@@ -110,4 +129,79 @@ document.addEventListener('visibilitychange', function() {
         // 页面隐藏时暂停滚动
         stopScrolling();
     }
-}); 
+});
+
+// 显示倒计时
+function showCountdown() {
+    // 移除已存在的倒计时
+    removeCountdown();
+    
+    let countdown = 5;
+    
+    const countdownElement = document.createElement('div');
+    countdownElement.id = 'auto-scroll-countdown';
+    countdownElement.innerHTML = `
+        <div style="
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 50px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 48px;
+            font-weight: bold;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            min-width: 120px;
+            animation: countdownPulse 1s ease-in-out infinite alternate;
+        ">
+            <div id="countdown-number">${countdown}</div>
+            <div style="
+                font-size: 14px;
+                margin-top: 10px;
+                opacity: 0.8;
+                font-weight: normal;
+            ">自动滚动即将开始</div>
+        </div>
+        <style>
+            @keyframes countdownPulse {
+                from { transform: translate(-50%, -50%) scale(0.95); }
+                to { transform: translate(-50%, -50%) scale(1.05); }
+            }
+        </style>
+    `;
+    
+    document.body.appendChild(countdownElement);
+    
+    // 更新倒计时数字
+    countdownInterval = setInterval(function() {
+        countdown--;
+        const numberElement = document.getElementById('countdown-number');
+        if (numberElement) {
+            numberElement.textContent = countdown;
+        }
+        
+        if (countdown <= 0) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+    }, 1000);
+}
+
+// 移除倒计时
+function removeCountdown() {
+    const countdownElement = document.getElementById('auto-scroll-countdown');
+    if (countdownElement) {
+        countdownElement.remove();
+    }
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+} 
